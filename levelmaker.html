@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0"
+    />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Level Maker</title>
+    <style>
+      body{background:#2c2c2c;display:flex;height:100vh;margin:0;justify-content:center}
+      #map{position:relative;width:16em;height:100%;border:2px dashed grey;box-sizing:border-box}
+      #item,#cursor{position:absolute;width:1em;height:1em}
+      #cursor{background-color:grey;background-color:#b1b1b1;z-index:999;opacity:.5}
+      #type{position:absolute;width:4em;height:4em;top:1em;left:1em;border:1px solid grey}
+      .box{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAJUExURQAAANtfIdxfIayOCPwAAAAhSURBVAjXY2AAAc3Q0AwGxdBQDwbR0NAQ0giwNrABIAAAYZsPW2MsjHAAAAAASUVORK5CYII=)}
+      .brick{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAGUExURcRVHQMDA838lrQAAAAXSURBVAjXY2RkYGIAIcb/DIwCSGwc4gBVagQ3EPBgcgAAAABJRU5ErkJggg==)}
+      .piece{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAMUExURUdwTP+bOwUFBctPD08gUHsAAAABdFJOUwBA5thmAAAAJElEQVQI12NgAAPRDCARGgUk4oEEY+m0BmIIhqgomDawAUAAAH/ZECaxtEsCAAAAAElFTkSuQmCC)}
+      .guess{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAgMAAABinRfyAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAMUExUReOHK/+xKwAAAAMDA81ONYEAAAA+SURBVAjXYzjAwMDMIBoaGs4gGxpaziDqwBrOIMrVCCQ4nWBEJhOQCNECEapAInQpiCUK5cqGLi2HGPAfCABU+xKUfHpTTwAAAABJRU5ErkJggg==)}
+      .pipeA{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAQAgMAAAAKbpXKAAAADFBMVEVHcEwFBQWD0xMAqwAC10YUAAAAAXRSTlMAQObYZgAAAC9JREFUCNdjCIUChqxVYLCSof7Xqv9A8Jch69eq1///v3sJZfxeSX0RuO2sEDoAAPf/XaqJnTVZAAAAAElFTkSuQmCC)}
+      .pipeB{background-image:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAQAgMAAAAKbpXKAAAADFBMVEVHcEwFBQWD0xMAqwAC10YUAAAAAXRSTlMAQObYZgAAABpJREFUCNdjYFu/atf//7smMEAY72CMARIBAHYQV7Ho5GKqAAAAAElFTkSuQmCC)}
+      #item.pipeA,#item.pipeB{width:2em;height:1em}
+      #type,#item{background-size:100% auto;image-rendering:pixelated;background-repeat:no-repeat;background-position:center}
+    </style>
+  </head>
+  <body id="app">
+    <div id="type" :class="typeBloc[type]"></div>
+    <div style="display:flex;flex-direction:column;height:100%">
+      <textarea v-model="inputMap" style="width:300px;flex: 0.8;"></textarea>
+      <button @click="convertMap">convert</button>
+      <button @click="clearMap">clear</button>
+    </div>
+    <div
+      id="map"
+      style="font-size: 32px"
+      @mousemove="mousemove"
+      @wheel="onWheel"
+      @mousedown="mouseDown"
+    >
+      <div
+        id="cursor"
+        :style="{'bottom':pointerY+'em','left':pointerX+'em'}"
+      ></div>
+      <div
+        id="item"
+        v-for="(val,id) in mapping"
+        :key="id"
+        :class="val.type"
+        :style="{'bottom':val.y+'em','left':val.x+'em'}"
+      ></div>
+    </div>
+    <script src="vue3.js"></script>
+    <script>
+      const { createApp } = Vue;
+      const typeBloc = ["piece", "box", "brick", "guess", "pipeA", "pipeB"];
+      const app = createApp({
+        data() {
+          return {
+            pointerX: 0,
+            pointerY: 0,
+            map: null,
+            type: 0,
+            typeBloc,
+            mapping: {},
+            inputMap: "[]",
+          };
+        },
+        methods: {
+          mousemove(e) {
+            let size = parseInt(this.map.style.fontSize);
+            this.pointerX = Math.floor(
+              (e.clientX - this.map.offsetLeft) / size
+            );
+            this.pointerY = Math.floor(
+              (this.map.clientHeight - e.clientY) / size
+            );
+          },
+          mouseDown(e) {
+            if (this.mapping[this.pointerX + "," + this.pointerY]) {
+              delete this.mapping[this.pointerX + "," + this.pointerY];
+            } else {
+              this.mapping[this.pointerX + "," + this.pointerY] = {
+                type: this.typeBloc[this.type],
+                x: this.pointerX,
+                y: this.pointerY,
+              };
+            }
+            let json = [];
+            for (let item of Object.values(this.mapping)) {
+              let a = {};
+              a[item.type] = [item.x, item.y];
+              json.push(a);
+            }
+            this.inputMap = JSON.stringify(json);
+          },
+          onWheel(e) {
+            if (e.wheelDeltaY > 0) {
+              this.type++;
+            }
+            if (e.wheelDeltaY < 0) {
+              this.type--;
+            }
+            if (this.type < 0) {
+              this.type = this.typeBloc.length - 1;
+            }
+            if (this.type > this.typeBloc.length - 1) {
+              this.type = 0;
+            }
+          },
+          convertMap() {
+            try {
+              let json = JSON.parse(this.inputMap);
+              let res = {};
+              for (let item of json) {
+                let type = Object.keys(item)[0];
+                let x = item[type][0];
+                let y = item[type][1];
+                res[x + "," + y] = { type, x, y };
+              }
+              this.mapping = { ...res };
+            } catch (e) {}
+          },
+          clearMap(){
+            this.inputMap="[]";
+            this.mapping = {};
+          }
+        },
+        mounted() {
+          this.map = document.getElementById("map");
+        },
+      }).mount("#app");
+    </script>
+  </body>
+</html>
