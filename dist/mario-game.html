@@ -865,11 +865,16 @@ const app = createApp({
     this.ground = document.querySelector("#ground");
     this.ground.style.fontSize = `${this.defaultGridSize}px`;
     fetch('./pattern.json')
-        .then((response) => response.json())
-        .then((json) => {this.jsonMap=json;this.loadMap();})
-        .catch(()=>{
+      .then((response) => response.json())
+      .then((json) => {this.jsonMap=json;this.loadMap();})
+      .catch(()=>{
+        fetch('https://htmlpreview.github.io/?https://github.com/Spishous/quick-mario-bros/master/dist/pattern.json')
+          .then((response) => response.json())
+          .then((json) => {this.jsonMap=json;this.loadMap();})
+          .catch(()=>{
           this.loadMap();
         });
+      });
     document
       .querySelectorAll("#ground i")
       .forEach((obj) => this.convertToObject(obj));
